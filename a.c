@@ -19,9 +19,10 @@ int main(void){
         // }
     }
     printf("Open File !\n");
+    fclose(fp);
     // printf("\e[37m\e[47m");
     // printf("hello world\n");
-    printf("\e[49m\e[39m");
+    printf("\e[49m\e[39m"); //画面の状態復帰
     return(0);
 }
 
