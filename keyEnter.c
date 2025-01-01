@@ -6,10 +6,11 @@
 void set_terminal_mode(void) {
     struct termios new_termios;
     tcgetattr(STDIN_FILENO, &new_termios);  // 現在の端末設定を取得
-    new_termios.c_lflag &= ~ICANON;          // 非カノニカルモードにする
-    new_termios.c_lflag &= ~ECHO;            // 入力内容を表示しない
+    new_termios.c_lflag &= ~(ICANON|ECHO);   // 非カノニカルモードにする/入力内容を表示しない
+    //printf("%d\n",new_termios.c_cc[VMIN]);
+    //printf("%d\n",new_termios.c_cc[VTIME]);
     new_termios.c_cc[VMIN] = 1;              // 最小文字数を1に設定
-    new_termios.c_cc[VTIME] = 0;             // タイムアウトなし
+    new_termios.c_cc[VTIME] = 1;             // タイムアウトなし
     tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);  // 設定を即時反映
 }
 
@@ -30,6 +31,7 @@ char get_key(void) {
 }
 
 int main(void) {
+    printf("%d\n",STDIN_FILENO);
     printf("Press a key (q to quit)\n");
 
     set_terminal_mode();  // 非カノニカルモードに設定
