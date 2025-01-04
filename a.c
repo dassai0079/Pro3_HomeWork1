@@ -78,27 +78,30 @@ FILE *getFileToCopy(){
     printf("\e[7mWhere to copy? : ");   //ユーザーにファイル名を入力させる
     scanf("%s",fileName);
     while (getchar()!='\n');  //改行まで読み飛ばす
+    clearLine(row);
+    clearLine(row-1);
+    fflush(stdout);
     fp=fopen(fileName,"r");
     if(fp==NULL){
-        printf("\e[7mそのファイルは存在しません\e[0m\n");
-        printf("新規に作成しますか？ (Y,y/N,n)\t:");
+        printf("\e[7m");
+        printf("そのファイルは存在しません。新規に作成しますか？ (Y,y/N,n): ");
         scanf("%c",&newFile);
-        for(int i=0; i<4; i++){
-            clearLine(row-i);
-        }
-        moveCursor(row-2,1);
+        printf("\e[0m");
+        clearLine(row-1);
+        moveCursor(row-1,1);
         printf("\e[7mq: quit c: CopyMode\nYou typed : \e[0m");
         fflush(stdout);
-        if(newFile=='N'||newFile=='n'){
+    
+        if(newFile=='N'||newFile=='n'){         //ビューモードに戻る
             printf("コピーモードを終了します:");
             fp=NULL;
-        }else if(newFile=='Y'||newFile=='y'){
+        }else if(newFile=='Y'||newFile=='y'){   //新規ファイルを作成する
             fp=fopen(fileName,"w+");
         }
     }else{
-        fp=fopen(fileName,"r+");
+        fp=fopen(fileName,"r+");    //ファイルが存在する時は更新モードで開く
     }
-    setTerminalMode();
+    setTerminalMode();  //カノニカルモードを解除
     return fp;
 }
 
@@ -159,7 +162,7 @@ int main(void){
     //補助文を表示
     printf("\e[7m");    //文字の背景、色を反転
     getWindowSize(&row,&column);    //ウィンドウサイズを取得
-    moveCursor(row-2,1);
+    moveCursor(row,1);
     printf("\e[7mq: quit c: CopyMode\nYou typed : %c \e[0m",c);    //文字の背景、色を反転して入力を表示
     printf("\e[0m");    //文字の背景、色を標準に戻す
     fflush(stdout);
@@ -169,14 +172,14 @@ int main(void){
     while(1){   //メインループ
         c=getKey();  // キー入力を取得
         getWindowSize(&row,&column);    //ウィンドウサイズを取得
-        clearLine(row-1);               //1つ前のステップで入力を表示した部分をクリア
-        clearLine(row-2);
+        clearLine(row);               //1つ前のステップで入力を表示した部分をクリア
+        clearLine(row-1);
         printf("\e[7mq: quit c: CopyMode\nYou typed : %c \e[0m",c);    //文字の背景、色を反転して入力を表示
         fflush(stdout);
         switch(c){
         case 'c':
-            clearLine(row-1);               //1つ前のステップで入力を表示した部分をクリア
-            clearLine(row-2);
+            clearLine(row);               //1つ前のステップで入力を表示した部分をクリア
+            clearLine(row-1);
             copyFp=getFileToCopy(); //コピー先ファイルを取得+ファイルポインタを取得
             break;
         case 'q':
