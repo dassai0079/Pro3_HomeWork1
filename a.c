@@ -70,17 +70,35 @@ void newNextStr(strbuf* from){ //受け取ったstrbufのnext要素を埋める
 FILE *getFileToCopy(){
     FILE *fp;
     char fileName[MAX_LEN];
+    char newFile;
+    int row;
+    int column;
+    getWindowSize(&row,&column);
     resetTerminalMode();
     printf("\e[7mWhere to copy? : ");   //ユーザーにファイル名を入力させる
     scanf("%s",fileName);
-    setTerminalMode();
-
+    while (getchar()!='\n');  //改行まで読み飛ばす
     fp=fopen(fileName,"r");
     if(fp==NULL){
-        printf("そのファイルは存在しません\n");
-        return NULL;
+        printf("\e[7mそのファイルは存在しません\e[0m\n");
+        printf("新規に作成しますか？ (Y,y/N,n)\t:");
+        scanf("%c",&newFile);
+        for(int i=0; i<4; i++){
+            clearLine(row-i);
+        }
+        moveCursor(row-2,1);
+        printf("\e[7mq: quit c: CopyMode\nYou typed : \e[0m");
+        fflush(stdout);
+        if(newFile=='N'||newFile=='n'){
+            printf("コピーモードを終了します:");
+            fp=NULL;
+        }else if(newFile=='Y'||newFile=='y'){
+            fp=fopen(fileName,"w+");
+        }
+    }else{
+        fp=fopen(fileName,"r+");
     }
-    printf("open!!\n");
+    setTerminalMode();
     return fp;
 }
 
@@ -113,20 +131,36 @@ int main(void){
 
     //ファイル名表示
     printf("\e[7m");    //文字の背景、色を反転
-    printf("%s\n",fileName);    
+    printf("%s\n",fileName);
     printf("\e[0m");    //文字の背景、色を標準に戻す
 
     //ファイルの内容を出力+構造体(リスト構造)にそれを保持させる
     while(fgets(heading->str, sizeof(heading->str), fp)) {
         printf("%s", heading->str);
         newNextStr(heading);
+        heading=heading->next;
     }
+
+    // //debug
+    // heading=head;
+    // int i=0;
+    // int a=0;
+    // char buf[3];
+    // while(heading->next!=NULL){
+    //     for(i=0; i<sizeof(heading->str); i+=2){
+    //         for(a=0; a<2; a++){
+    //             buf[a]=heading->str[i+a];
+    //         }
+    //         printf("%s",buf);
+    //     }
+    //     heading=heading->next;
+    // }
 
     //補助文を表示
     printf("\e[7m");    //文字の背景、色を反転
     getWindowSize(&row,&column);    //ウィンドウサイズを取得
-    moveCursor(row-1,1);
-    printf("Press a key (q to quit): ");
+    moveCursor(row-2,1);
+    printf("\e[7mq: quit c: CopyMode\nYou typed : %c \e[0m",c);    //文字の背景、色を反転して入力を表示
     printf("\e[0m");    //文字の背景、色を標準に戻す
     fflush(stdout);
 
@@ -135,9 +169,14 @@ int main(void){
     while(1){   //メインループ
         c=getKey();  // キー入力を取得
         getWindowSize(&row,&column);    //ウィンドウサイズを取得
-        clearLine(row-1);           //一番下の行をクリア
+        clearLine(row-1);               //1つ前のステップで入力を表示した部分をクリア
+        clearLine(row-2);
+        printf("\e[7mq: quit c: CopyMode\nYou typed : %c \e[0m",c);    //文字の背景、色を反転して入力を表示
+        fflush(stdout);
         switch(c){
         case 'c':
+            clearLine(row-1);               //1つ前のステップで入力を表示した部分をクリア
+            clearLine(row-2);
             copyFp=getFileToCopy(); //コピー先ファイルを取得+ファイルポインタを取得
             break;
         case 'q':
@@ -151,7 +190,5 @@ int main(void){
         default:
             break;
         }
-        printf("\e[7mPress a key (q to quit): %c \e[0m",c);    //文字の背景、色を反転して入力を表示
-        fflush(stdout);
     }
 }
