@@ -47,11 +47,32 @@ void newNextStr(strbuf* from){ //受け取ったstrbufのnext要素を埋める
     to->prev=from;
 }
 
+FILE *getFileToCopy(){
+    FILE *fp;
+    char ch;
+    int index = 0;
+    char fileName[MAX_LEN];
+    resetTerminalMode();
+    // ユーザーにファイル名を入力させる
+    printf("\e[7mWhere to copy? : ");
+    scanf("%s",fileName);
+    setTerminalMode();
+    fp=fopen(fileName,"r");
+    if(fp==NULL){
+        printf("そのファイルは存在しません\n");
+        return NULL;
+    }
+    printf("open!!\n");
+    return fp;
+}
+
 int main(void){
     FILE *fp;
+    FILE *copyFp;
     char fileName[FILENAME_MAX];
     char utility[MAX_LEN];
     char c;
+    int a;
     strbuf* head = malloc(sizeof(strbuf));
     head->prev=NULL;
     head->next=NULL;
@@ -84,11 +105,19 @@ int main(void){
     setTerminalMode();  // 非カノニカルモードに設定
 
     while(1){   //メインループ
+        // fflush(stdout);
+        // printf("\e[2J\e[1;1H"); //ターミナルをクリア=>カーソルを1行1列目に移動
+        // heading=head;
+        // while(heading->next==NULL){
+        //     printf("%s",heading->str);
+        //     heading=heading->next;
+        // }
         c = getKey();  // キー入力を取得
-        printf("%c",c);
+        fflush(stdout);
+        printf("\e[7m%c\e[0m",c);    //文字の背景、色を反転
         switch(c){
         case 'c':
-            int a=10;
+            copyFp=getFileToCopy();
             break;
         case 'q':
             resetTerminalMode();  // 端末設定を元に戻す
