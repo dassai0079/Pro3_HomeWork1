@@ -105,6 +105,23 @@ FILE *getFileToCopy(){
     return fp;
 }
 
+void printFile(strbuf *head, char *fileName){   //ヘッダー+ファイルの中身を構造体を基に出力
+    strbuf *heading;
+    //出力準備
+    printf("\e[2J");    //ターミナルをクリア
+    moveCursor(1,1);    //カーソルを1行1列目に移動
+    //ファイル名表示
+    printf("\e[7m");    //文字の背景、色を反転
+    printf("%s\n",fileName);
+    printf("\e[0m");    //文字の背景、色を標準に戻す
+    //ファイル内表示
+    heading=head;
+    while(heading->next!=NULL){
+        printf("%s",heading->str);
+        heading=heading->next;
+    }
+}
+
 int main(void){
     FILE *fp;
     FILE *copyFp;
