@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <termios.h>
 #include <stdlib.h>
+#include <sys/ioctl.h>
 #define MAX_LEN 30
 
 typedef struct stringBuffer{
@@ -22,8 +23,8 @@ void setTerminalMode(void) {
 void resetTerminalMode(void) {
     struct termios new_termios;
     tcgetattr(STDIN_FILENO,&new_termios);
-    new_termios.c_lflag|=ICANON;           // カノニカルモードに戻す
-    new_termios.c_lflag|=ECHO;             // 入力内容を表示
+    new_termios.c_lflag|=ICANON;           //カノニカルモードに戻す
+    new_termios.c_lflag|=ECHO;             //入力内容を表示
     tcsetattr(STDIN_FILENO,TCSANOW,&new_termios);
 }
 
@@ -33,6 +34,25 @@ char getKey(void) {
         return buf;
     }
     return 0;  // エラーまたは入力なし
+}
+
+void getWindowSize(int *rows, int *cols){
+    struct winsize ws;
+    if(ioctl(STDOUT_FILENO,TIOCGWINSZ,&ws)==-1) {
+        perror("error: Failed to get window size");
+        exit(1);
+    }
+    *rows=ws.ws_row;
+    *cols=ws.ws_col;
+}
+
+void clearLine(int line){
+    printf("\e[%d;1H",line);    //受け取った行の1列目へカーソル移動
+    printf("\e[K");             //カーソル位置から行末までを消去する
+}
+
+void moveCursor(int row, int column){
+    printf("\e[%d;%dH",row,column);
 }
 
 void newNextStr(strbuf* from){ //受け取ったstrbufのnext要素を埋める
@@ -49,12 +69,9 @@ void newNextStr(strbuf* from){ //受け取ったstrbufのnext要素を埋める
 
 FILE *getFileToCopy(){
     FILE *fp;
-    char ch;
-    int index = 0;
     char fileName[MAX_LEN];
-
     resetTerminalMode();
-    printf("\e[7mWhere to copy? : ");   // ユーザーにファイル名を入力させる
+    printf("\e[7mWhere to copy? : ");   //ユーザーにファイル名を入力させる
     scanf("%s",fileName);
     setTerminalMode();
 
@@ -70,17 +87,18 @@ FILE *getFileToCopy(){
 int main(void){
     FILE *fp;
     FILE *copyFp;
+    int row;    //行
+    int column; //列
     char fileName[FILENAME_MAX];
-    char utility[MAX_LEN];
     char c;
-    int a;
     strbuf* head = malloc(sizeof(strbuf));
     head->prev=NULL;
     head->next=NULL;
     strbuf* heading=head;
 
     //ファイルオープン部
-    printf("\e[2J\e[1;1H"); //ターミナルをクリア=>カーソルを1行1列目に移動
+    printf("\e[2J"); //ターミナルをクリア
+    moveCursor(1,1);        //カーソルを1行1列目に移動
     printf("ファイルの名前を入力してください :\t");
     scanf("%s",fileName);
     fp=fopen(fileName,"r");
@@ -89,47 +107,51 @@ int main(void){
         return(0);
     }
 
-    printf("\e[2J\e[1;1H"); //ターミナルをクリア=>カーソルを1行1列目に移動
+    //出力準備
+    printf("\e[2J"); //ターミナルをクリア
+    moveCursor(1,1);        //カーソルを1行1列目に移動
+
+    //ファイル名表示
     printf("\e[7m");    //文字の背景、色を反転
-    printf("%s\n",fileName);
-    printf("\e[0m");
-    //ファイル表示部+strに文字を代入していく
+    printf("%s\n",fileName);    
+    printf("\e[0m");    //文字の背景、色を標準に戻す
+
+    //ファイルの内容を出力+構造体(リスト構造)にそれを保持させる
     while(fgets(heading->str, sizeof(heading->str), fp)) {
         printf("%s", heading->str);
         newNextStr(heading);
     }
+
+    //補助文を表示
     printf("\e[7m");    //文字の背景、色を反転
+    getWindowSize(&row,&column);    //ウィンドウサイズを取得
+    moveCursor(row-1,1);
     printf("Press a key (q to quit): ");
-    printf("\e[0m");
+    printf("\e[0m");    //文字の背景、色を標準に戻す
     fflush(stdout);
 
-    setTerminalMode();  // 非カノニカルモードに設定
+    setTerminalMode();  //非カノニカルモードに設定
 
     while(1){   //メインループ
-        // fflush(stdout);
-        // printf("\e[2J\e[1;1H"); //ターミナルをクリア=>カーソルを1行1列目に移動
-        // heading=head;
-        // while(heading->next==NULL){
-        //     printf("%s",heading->str);
-        //     heading=heading->next;
-        // }
-        c = getKey();  // キー入力を取得
-        printf("\e[7m%c\e[0m",c);    //文字の背景、色を反転
-        fflush(stdout);
+        c=getKey();  // キー入力を取得
+        getWindowSize(&row,&column);    //ウィンドウサイズを取得
+        clearLine(row-1);           //一番下の行をクリア
         switch(c){
         case 'c':
-            printf("\e[K");
-            copyFp=getFileToCopy();
+            copyFp=getFileToCopy(); //コピー先ファイルを取得+ファイルポインタを取得
             break;
         case 'q':
-            resetTerminalMode();  // 端末設定を元に戻す
+            resetTerminalMode();    //端末設定を元に戻す
             fclose(fp);
-            printf("\e[2J\e[1;1H"); //ターミナルをクリア=>カーソルを1行1列目に移動
-            printf("\n\e[0m"); //画面の状態復帰
+            printf("\e[2J");        //ターミナルをクリア
+            moveCursor(1,1);        //カーソルを1行1列目に移動
+            printf("\e[0m");        //画面の状態復帰
             return(0);
             break;
         default:
             break;
         }
+        printf("\e[7mPress a key (q to quit): %c \e[0m",c);    //文字の背景、色を反転して入力を表示
+        fflush(stdout);
     }
 }
