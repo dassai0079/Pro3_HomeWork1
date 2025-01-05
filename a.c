@@ -115,6 +115,20 @@ FILE *getFileToCopy(){
     return fp;
 }
 
+//ファイルの内容を構造体(リスト構造)に保持させ,先頭要素を返す
+strbuf* loadTextFile(FILE* fp){
+    strbuf* head = malloc(sizeof(strbuf));
+    head->prev=NULL;
+    head->next=NULL;
+    strbuf* heading=head;
+    //ファイルの内容を出力+構造体(リスト構造)にそれを保持させる
+    while(fgets(heading->str, sizeof(heading->str), fp)) {
+        newNextStr(heading);
+        heading=heading->next;
+    }
+    return head;
+}
+
 void pointingText(strbuf *head){
     long countChar=0;
     char c;
@@ -170,9 +184,8 @@ void pointingText(strbuf *head){
 void printFile(strbuf *head, char *fileName){   //ヘッダー+ファイルの中身を構造体を基に出力
     strbuf *heading;
     //出力準備
-    system("clear");
-    printf("\e[2J");    //ターミナルをクリア
-    moveCursor(1,1);    //カーソルを1行1列目に移動
+    system("clear");    //ターミナルをクリア
+    moveCursor(2,1);    //カーソルを2行1列目に移動
     //ファイル名表示
     printf("\e[7m");    //文字の背景、色を反転
     printf("%s\n",fileName);
@@ -192,10 +205,7 @@ int main(void){
     int column; //列
     char fileName[FILENAME_MAX];
     char c;
-    strbuf* head = malloc(sizeof(strbuf));
-    head->prev=NULL;
-    head->next=NULL;
-    strbuf* heading=head;
+    strbuf* srcTxt;
 
     //ファイルオープン部
     printf("\e[2J"); //ターミナルをクリア
@@ -208,22 +218,8 @@ int main(void){
         return(0);
     }
 
-    //出力準備
-    printf("\e[2J");    //ターミナルをクリア
-    moveCursor(1,1);    //カーソルを1行1列目に移動
-
-    //ファイル名表示
-    printf("\e[7m");    //文字の背景、色を反転
-    printf("%s\n",fileName);
-    printf("\e[0m");    //文字の背景、色を標準に戻す
-
-    //ファイルの内容を出力+構造体(リスト構造)にそれを保持させる
-    while(fgets(heading->str, sizeof(heading->str), fp)) {
-        //printf("%s", heading->str);
-        newNextStr(heading);
-        heading=heading->next;
-    }
-
+    srcTxt=loadTextFile(fp);
+    printFile(srcTxt,fileName);
     //debug
     // divideStrbuf(head->next,&(head->next->str[6]));
     // printf("%s\n", head->str);
@@ -258,26 +254,26 @@ int main(void){
     while(1){   //メインループ
         c=getKey();  // キー入力を取得
         getWindowSize(&row,&column);    //ウィンドウサイズを取得
-        clearLine(row);               //1つ前のステップで入力を表示した部分をクリア
+        clearLine(row);             //1つ前のステップで入力を表示した部分をクリア
         clearLine(row-1);
         printf("\e[7mq: quit c: CopyMode\nYou typed : %c \e[0m",c);    //文字の背景、色を反転して入力を表示
         fflush(stdout);
         switch(c){
         case 'c':
-            clearLine(row);               //1つ前のステップで入力を表示した部分をクリア
+            //ファイルコピーの受付
+            clearLine(row);         //1つ前のステップで入力を表示した部分をクリア
             clearLine(row-1);
-            copyFp=getFileToCopy(); //コピー先ファイルを取得+ファイルポインタを取得
-            system("clear");
-            //printf("\e[2J");        //ターミナルをクリア
-            pointingText(head);
-            printFile(head,fileName);
+            copyFp=getFileToCopy(); //コピー先ファイル名入力+ファイルポインタを取得
+            system("clear");        //ターミナルをクリア
+            pointingText(srcTxt);   //どこからどこまでをコピーするか指定させる
+            //状態復帰
+            printFile(srcTxt,fileName);
             printf("\e[7mq: quit c: CopyMode\nYou typed : \e[0m");
             break;
         case 'q':
             resetTerminalMode();    //端末設定を元に戻す
             fclose(fp);
-            system("clear");
-            //printf("\e[2J");        //ターミナルをクリア
+            system("clear");        //ターミナルをクリア
             moveCursor(1,1);        //カーソルを1行1列目に移動
             printf("\e[0m");        //画面の状態復帰
             return(0);
