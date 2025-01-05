@@ -3,6 +3,7 @@
 #include <termios.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
+#include <string.h>
 #define MAX_LEN 30
 
 typedef struct stringBuffer{
@@ -53,11 +54,11 @@ void clearLine(int line){
 }
 
 void moveCursor(int row, int column){
-    printf("\e[%d;%dH",row,column);
+    printf("\e[%d;%dH",row,column); //カーソルを動かすエスケープシーケンス実行
     fflush(stdout);
 }
 
-void newNextStr(strbuf* from){ //受け取ったstrbufのnext要素を埋める
+void newNextStr(strbuf* from){ //受け取ったstrbufのnext要素を作成する
     strbuf* to = malloc(sizeof(strbuf));
     if(from->next=NULL){
         to->next=NULL;
@@ -67,6 +68,13 @@ void newNextStr(strbuf* from){ //受け取ったstrbufのnext要素を埋める
     }
     from->next=to;
     to->prev=from;
+}
+
+//strbufをborderが指す文字を境に分割して文字列に新たな区切りを付ける
+void divideStrbuf(strbuf* src, char* border){
+    newNextStr(src);
+    strcpy(src->next->str,border);
+    *border='\0';
 }
 
 FILE *getFileToCopy(){
@@ -162,6 +170,7 @@ void pointingText(strbuf *head){
 void printFile(strbuf *head, char *fileName){   //ヘッダー+ファイルの中身を構造体を基に出力
     strbuf *heading;
     //出力準備
+    system("clear");
     printf("\e[2J");    //ターミナルをクリア
     moveCursor(1,1);    //カーソルを1行1列目に移動
     //ファイル名表示
@@ -210,12 +219,18 @@ int main(void){
 
     //ファイルの内容を出力+構造体(リスト構造)にそれを保持させる
     while(fgets(heading->str, sizeof(heading->str), fp)) {
-        printf("%s", heading->str);
+        //printf("%s", heading->str);
         newNextStr(heading);
         heading=heading->next;
     }
 
-    // //debug
+    //debug
+    // divideStrbuf(head->next,&(head->next->str[6]));
+    // printf("%s\n", head->str);
+    // printf("%s\n", head->next->str);
+    // printf("%s\n", head->next->next->str);
+    // fflush(stdout);
+
     // heading=head;
     // int i=0;
     // int a=0;
@@ -252,7 +267,8 @@ int main(void){
             clearLine(row);               //1つ前のステップで入力を表示した部分をクリア
             clearLine(row-1);
             copyFp=getFileToCopy(); //コピー先ファイルを取得+ファイルポインタを取得
-            printf("\e[2J");        //ターミナルをクリア
+            system("clear");
+            //printf("\e[2J");        //ターミナルをクリア
             pointingText(head);
             printFile(head,fileName);
             printf("\e[7mq: quit c: CopyMode\nYou typed : \e[0m");
@@ -260,7 +276,8 @@ int main(void){
         case 'q':
             resetTerminalMode();    //端末設定を元に戻す
             fclose(fp);
-            printf("\e[2J");        //ターミナルをクリア
+            system("clear");
+            //printf("\e[2J");        //ターミナルをクリア
             moveCursor(1,1);        //カーソルを1行1列目に移動
             printf("\e[0m");        //画面の状態復帰
             return(0);
