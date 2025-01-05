@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <string.h>
-#define MAX_LEN 30
 
 typedef struct stringBuffer{
     char str[100];
@@ -89,7 +88,7 @@ void divideStrbuf(strbuf* src, char* border){
 
 FILE *getFileToCopy(){
     FILE *fp;
-    char fileName[MAX_LEN];
+    char fileName[FILENAME_MAX];
     char newFile;
     int row;
     int column;
@@ -114,7 +113,6 @@ FILE *getFileToCopy(){
     
         if(newFile=='N'||newFile=='n'){         //ビューモードに戻る
             printf("Quit CopyMode");
-            fp=NULL;
         }else if(newFile=='Y'||newFile=='y'){   //新規ファイルを作成する
             fp=fopen(fileName,"w+");
         }
@@ -151,7 +149,7 @@ strbuf* pointingText(strbuf *head){
     printf("%s",heading->str);
     getWindowSize(&row,&column);
     moveCursor(row-1,1);
-    printf("\e[7m(h:left l:right j:PgDn k:PgUp)\nWatching page %d, Pointing:%d\e[0m",cntStrbuf,cursorX);
+    printf("\e[7m(h:left l:right j:PgDn k:PgUp a:pointing)\nWatching page %d, Pointing:%d\e[0m",cntStrbuf,cursorX);
     moveCursor(0,cursorX);
     //ループ
     while(1){
@@ -192,7 +190,7 @@ strbuf* pointingText(strbuf *head){
         case 'a':
             from=&heading->str[cursorX-1];
             divideStrbuf(heading,from);
-            return(heading->next);
+            return(heading);
         default:
             break;
         }
@@ -275,29 +273,28 @@ int main(void){
             copyFp=getFileToCopy(); //コピー先ファイル名入力+ファイルポインタを取得
             if(copyFp!=NULL){
                 system("clear");        //ターミナルをクリア
-                printFile(srcTxt,fileName);
-                copyFrom=pointingText(srcTxt);   //どこからコピーするか
-                system("clear");
-                printFile(srcTxt,fileName);
-                copyEnd=pointingText(srcTxt);   //どこからコピーするか        
-                system("clear");
-                printFile(srcTxt,fileName);
-                dstTxt=loadTextFile(copyFp);
+                copyFrom=pointingText(srcTxt)->next;   //どこからコピーするか
+                system("clear");        //ターミナルをクリア
+                copyEnd=pointingText(srcTxt);           //どこまでコピーするか
+                system("clear");        //ターミナルをクリア
+                dstTxt=loadTextFile(copyFp);            //どこにコピーするか
                 pasteFrom=pointingText(dstTxt);
+            }else{
+                break;              //コピー先を取得できない/設定しない場合はメインループに戻る
             }
             //テキストの挿入 この後の貼り付け処理には片方向の整合性さえとれればよい
             tmp=copyEnd->next;          //copyEndの次のノードを繋ぎ変える=>コピー終了後に戻す必要
             copyEnd->next=pasteFrom->next;
             pasteFrom->next=copyFrom;   //この時点でcopyFromとpasteFromの情報はいらなくなった
-            fseek(copyFp,0,SEEK_SET);
-            pasteFrom=srcTxt;
+            fseek(copyFp,0,SEEK_SET);   //ファイルへの書き込み
+            pasteFrom=dstTxt;
             while(pasteFrom->next!=NULL){
                 fprintf(copyFp,"%s",pasteFrom->str);
                 pasteFrom=pasteFrom->next;
             }
             fprintf(copyFp,"%s",pasteFrom->str);
-            fclose(copyFp);
-            copyEnd->next=tmp;  //つじつま合わせ copyEndとtmpの情報がいらなくなった
+            fclose(copyFp);             //コピー先ファイルのクローズ
+            copyEnd->next=tmp;  //つじつま合わせ(ここでcopyEndとtmpの情報がいらなくなる)
             while(pasteFrom->prev!=NULL){   //コピー先ファイルについての情報はこの時点で不要
                 tmp=pasteFrom->prev;
                 free(pasteFrom);
