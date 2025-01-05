@@ -130,58 +130,70 @@ strbuf* loadTextFile(FILE* fp){
 }
 
 void pointingText(strbuf *head){
-    long countChar=0;
-    char c;
-    int cursorX=1;
-    int cursorY=1;
-    int row,column;
-    strbuf* heading=head;
-    moveCursor(1,1);
+    char c;             //入力キー
+    int cursorX=0;      //カーソルのx座標
+    int cntStrbuf=0;    //リストの先頭からいくつ先の要素を参照しているか
+    int row,column;     //ウィンドウサイズの高さ、幅
+    strbuf* heading=head;   //現在参照している双方向リストの要素
+    //初期表示
+    moveCursor(0,0);
     printf("\e[0m");
     printf("%s",heading->str);
+    moveCursor(0,0);
+    //ループ
     while(1){
         c=getKey();
+        clearLine(row);
         switch(c)
         {
         case 'h':   //左
-            cursorX-=1;
-            moveCursor(cursorY,cursorX);
-            countChar-=1;
+            if(cursorX>0){
+                cursorX-=1;
+            }
+            moveCursor(0,cursorX);
             break;
         case 'l':   //右
-            cursorX+=1;
-            moveCursor(cursorY,cursorX);
-            countChar+=1;
+            if(cursorX<(int)strlen(heading->str)){
+                cursorX+=1;
+                //countChar+=1;
+            }
+            moveCursor(0,cursorX);
             break;
         case 'j':   //下
-            cursorX=1;
+            cursorX=0;
             if(heading->next!=NULL){    //セグメンテーション違反対策
                 heading=heading->next;
+                cntStrbuf++;
             }
             clearLine(1);
-            moveCursor(1,1);
+            moveCursor(0,0);
             printf("%s",heading->str);
             break;
         case 'k':   //上
-            cursorX=1;
+            cursorX=0;
             if(heading->prev!=NULL){    //セグメンテーション違反対策
                 heading=heading->prev;
+                cntStrbuf--;
             }
             clearLine(1);
-            moveCursor(1,1);
+            moveCursor(0,0);
             printf("%s",heading->str);
             break;
+        case 'q':
+            return; //(仮)カーソルが画面端に行ったらメインループに戻る
         default:
             break;
         }
         getWindowSize(&row,&column);
-        if(countChar>column){
-            return;
-        }
+        //操作説明と現在参照しているページ(リストの要素)の表示
+        moveCursor(row-1,1);
+        printf("\e[7m(h:left l:right j:PgDn k:PgUp q:quit)\nWatching page %d\e[0m",cntStrbuf);
+        moveCursor(0,cursorX);
     }
 }
 
-void printFile(strbuf *head, char *fileName){   //ヘッダー+ファイルの中身を構造体を基に出力
+//ファイル名+ファイルの中身を構造体を基に出力
+void printFile(strbuf *head, char *fileName){
     strbuf *heading;
     //出力準備
     system("clear");    //ターミナルをクリア
@@ -190,7 +202,7 @@ void printFile(strbuf *head, char *fileName){   //ヘッダー+ファイルの�
     printf("\e[7m");    //文字の背景、色を反転
     printf("%s\n",fileName);
     printf("\e[0m");    //文字の背景、色を標準に戻す
-    //ファイル内表示
+    //ファイルの中身を表示
     heading=head;
     while(heading->next!=NULL){
         printf("%s",heading->str);
@@ -199,47 +211,27 @@ void printFile(strbuf *head, char *fileName){   //ヘッダー+ファイルの�
 }
 
 int main(void){
-    FILE *fp;
-    FILE *copyFp;
+    FILE *fp;       //コピー元ファイル
+    FILE *copyFp;   //コピー先ファイル
     int row;    //行
     int column; //列
-    char fileName[FILENAME_MAX];
-    char c;
-    strbuf* srcTxt;
+    char fileName[FILENAME_MAX];    //コピー元ファイルの名前
+    char c;     //入力されたキー
+    strbuf* srcTxt; //コピー元ファイルのテキストを保持する双方向リストの先頭ヘッダー
 
     //ファイルオープン部
-    printf("\e[2J"); //ターミナルをクリア
-    moveCursor(1,1);        //カーソルを1行1列目に移動
+    printf("\e[2J");    //ターミナルをクリア
+    moveCursor(1,1);    //カーソルを1行1列目に移動
     printf("ファイルの名前を入力してください :\t");
     scanf("%s",fileName);
     fp=fopen(fileName,"r");
     if(fp==NULL){
-        printf("そのファイルは存在しません\n");
+        printf("そのファイルは存在しません\nプログラムを終了します\n");
         return(0);
     }
 
-    srcTxt=loadTextFile(fp);
-    printFile(srcTxt,fileName);
-    //debug
-    // divideStrbuf(head->next,&(head->next->str[6]));
-    // printf("%s\n", head->str);
-    // printf("%s\n", head->next->str);
-    // printf("%s\n", head->next->next->str);
-    // fflush(stdout);
-
-    // heading=head;
-    // int i=0;
-    // int a=0;
-    // char buf[3];
-    // while(heading->next!=NULL){
-    //     for(i=0; i<sizeof(heading->str); i+=2){
-    //         for(a=0; a<2; a++){
-    //             buf[a]=heading->str[i+a];
-    //         }
-    //         printf("%s",buf);
-    //     }
-    //     heading=heading->next;
-    // }
+    srcTxt=loadTextFile(fp);        //ファイル読込
+    printFile(srcTxt,fileName);     //ファイル表示
 
     //補助文を表示
     printf("\e[7m");    //文字の背景、色を反転
@@ -264,10 +256,13 @@ int main(void){
             clearLine(row);         //1つ前のステップで入力を表示した部分をクリア
             clearLine(row-1);
             copyFp=getFileToCopy(); //コピー先ファイル名入力+ファイルポインタを取得
-            system("clear");        //ターミナルをクリア
-            pointingText(srcTxt);   //どこからどこまでをコピーするか指定させる
+            if(copyFp!=NULL){
+                system("clear");        //ターミナルをクリア
+                pointingText(srcTxt);   //どこからどこまでをコピーするか指定させる
+            }
             //状態復帰
             printFile(srcTxt,fileName);
+            moveCursor(row,1);
             printf("\e[7mq: quit c: CopyMode\nYou typed : \e[0m");
             break;
         case 'q':
