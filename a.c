@@ -49,10 +49,12 @@ void getWindowSize(int *rows, int *cols){
 void clearLine(int line){
     printf("\e[%d;1H",line);    //受け取った行の1列目へカーソル移動
     printf("\e[K");             //カーソル位置から行末までを消去する
+    fflush(stdout);
 }
 
 void moveCursor(int row, int column){
     printf("\e[%d;%dH",row,column);
+    fflush(stdout);
 }
 
 void newNextStr(strbuf* from){ //受け取ったstrbufのnext要素を埋める
@@ -105,6 +107,58 @@ FILE *getFileToCopy(){
     return fp;
 }
 
+void pointingText(strbuf *head){
+    long countChar=0;
+    char c;
+    int cursorX=1;
+    int cursorY=1;
+    int row,column;
+    strbuf* heading=head;
+    moveCursor(1,1);
+    printf("\e[0m");
+    printf("%s",heading->str);
+    while(1){
+        c=getKey();
+        switch(c)
+        {
+        case 'h':   //左
+            cursorX-=1;
+            moveCursor(cursorY,cursorX);
+            countChar-=1;
+            break;
+        case 'l':   //右
+            cursorX+=1;
+            moveCursor(cursorY,cursorX);
+            countChar+=1;
+            break;
+        case 'j':   //下
+            cursorX=1;
+            if(heading->next!=NULL){    //セグメンテーション違反対策
+                heading=heading->next;
+            }
+            clearLine(1);
+            moveCursor(1,1);
+            printf("%s",heading->str);
+            break;
+        case 'k':   //上
+            cursorX=1;
+            if(heading->prev!=NULL){    //セグメンテーション違反対策
+                heading=heading->prev;
+            }
+            clearLine(1);
+            moveCursor(1,1);
+            printf("%s",heading->str);
+            break;
+        default:
+            break;
+        }
+        getWindowSize(&row,&column);
+        if(countChar>column){
+            return;
+        }
+    }
+}
+
 void printFile(strbuf *head, char *fileName){   //ヘッダー+ファイルの中身を構造体を基に出力
     strbuf *heading;
     //出力準備
@@ -146,8 +200,8 @@ int main(void){
     }
 
     //出力準備
-    printf("\e[2J"); //ターミナルをクリア
-    moveCursor(1,1);        //カーソルを1行1列目に移動
+    printf("\e[2J");    //ターミナルをクリア
+    moveCursor(1,1);    //カーソルを1行1列目に移動
 
     //ファイル名表示
     printf("\e[7m");    //文字の背景、色を反転
@@ -198,6 +252,10 @@ int main(void){
             clearLine(row);               //1つ前のステップで入力を表示した部分をクリア
             clearLine(row-1);
             copyFp=getFileToCopy(); //コピー先ファイルを取得+ファイルポインタを取得
+            printf("\e[2J");        //ターミナルをクリア
+            pointingText(head);
+            printFile(head,fileName);
+            printf("\e[7mq: quit c: CopyMode\nYou typed : \e[0m");
             break;
         case 'q':
             resetTerminalMode();    //端末設定を元に戻す
